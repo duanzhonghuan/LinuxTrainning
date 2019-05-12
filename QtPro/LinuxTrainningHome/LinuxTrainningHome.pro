@@ -26744,4 +26744,5 @@ INCLUDEPATH += \
     ../../../../../../media/dzh/linux/sourceInsight-linux3.5/linux-3.5/drivers/dma/ioat \
     ../../../../../../media/dzh/linux/sourceInsight-linux3.5/linux-3.5/drivers/gpio \
     ../../../../../../media/dzh/linux/sourceInsight-linux3.5/linux-3.5/drivers/gpu/arm/mali/linux \
-    ../../../../../../media/dzh/linux/sourceInsight-linux3.5/linux-3.5/include
+    ../../../../../../media/dzh/linux/sourceInsight-linux3.5/linux-3.5/include \
+    ../../../../../../media/dzh/linux/sourceInsight-linux3.5/linux-3.5/arch/arm/include
