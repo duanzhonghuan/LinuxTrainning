@@ -22,6 +22,7 @@
 #define  DEVICE_NUM  (1)
 #define  MEM_CLEAR  (0x01)
 static int globalmem_major = GLOBALMEM_MAJOR;
+#define globalmem_debug
 
 /**
  * @brief The globalmem_dev struct - the description of the global memory
@@ -86,12 +87,16 @@ static ssize_t globalmem_read (struct file *filep, char __user *buf, size_t coun
 {
     ssize_t ret = 0;
     loff_t  curpos = *ppos;
+    struct globalmem_dev *dev;
+#ifdef globalmem_debug
+    printk("globalmem_read\n");
+#endif
     if (curpos > GLOBALMEM_SIZE)
     {
         ret = -ENAVAIL;
         return ret;
     }
-    struct globalmem_dev *dev = filep->private_data;
+    dev = filep->private_data;
     if (!dev)
     {
         ret = -ENOMEM;
@@ -110,12 +115,16 @@ static ssize_t globalmem_write (struct file *filep, const char __user *buf, size
 {
     ssize_t ret = 0;
     loff_t  curpos = *ppos;
+    struct globalmem_dev *dev;
+#ifdef globalmem_debug
+    printk("globalmem_write\n");
+#endif
     if (curpos > GLOBALMEM_SIZE)
     {
         ret = -ENAVAIL;
         return ret;
     }
-    struct globalmem_dev *dev = filep->private_data;
+    dev = filep->private_data;
     if (!dev)
     {
         ret = -ENOMEM;
@@ -156,6 +165,9 @@ static int globalmem_open (struct inode *inode, struct file *filep)
 {
     struct globalmem_dev *dev = container_of(inode->i_cdev, struct globalmem_dev, chrdev);
     filep->private_data = dev;
+#ifdef globalmem_debug
+    printk("globalmem_open\n");
+#endif
     return 0;
 }
 
@@ -180,7 +192,7 @@ static  struct file_operations chrdev_file_operations =
  * @param chrdev: out parameter for a char device
  * @param index: the minor device id
  */
-static globalmem_init_dev(struct globalmem_dev *chrdev, int index)
+static void globalmem_init_dev(struct globalmem_dev *chrdev, int index)
 {
     int ret = 0;
     dev_t devno = MKDEV(globalmem_major, index);
@@ -203,6 +215,9 @@ static int __init globalmem_init(void)
     int ret = 0;
     // 1. get the device id
     dev_t devno = MKDEV(globalmem_major, 0);
+#ifdef globalmem_debug
+    printk("globalmem_init\n");
+#endif
     // 2. register the DEVICE_NUM of the char device
     if (globalmem_major)
     {
@@ -232,6 +247,7 @@ static int __init globalmem_init(void)
     {
         globalmem_init_dev(globalmem_devp + i, i);
     }
+    printk("globalmem_init success\n");
     return 0;
 
  fail_malloc:
@@ -245,6 +261,9 @@ static int __init globalmem_init(void)
 static void __exit globalmem_exit(void)
 {
     int i = 0;
+#ifdef globalmem_debug
+    printk("globalmem_exit\n");
+#endif
     // 1. remove the globalmem structure from teh kobject map
     for (i = 0; i < DEVICE_NUM; i++)
     {
@@ -258,6 +277,7 @@ static void __exit globalmem_exit(void)
     unregister_chrdev_region(MKDEV(globalmem_major, 0), DEVICE_NUM);
 
     // 4. remove the device id
+    printk("globalmem_exit success\n");
 }
 
 module_init(globalmem_init)
