@@ -283,6 +283,6 @@ static void __exit globalmem_exit(void)
 module_init(globalmem_init)
 module_exit(globalmem_exit)
 // the declaration	of the author
-MODULE_AUTHOR("ZhongHuan Duan <15818411038@163.com>");
+MODULE_AUTHOR("ZhongHuan Duan <15818411038@163.com>")
 // the declaration of the licence
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL v2")
