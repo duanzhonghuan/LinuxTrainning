@@ -91,10 +91,9 @@ static ssize_t globalmem_read (struct file *filep, char __user *buf, size_t coun
 #ifdef globalmem_debug
     printk("globalmem_read\n");
 #endif
-    if (curpos > GLOBALMEM_SIZE)
+    if (curpos >= GLOBALMEM_SIZE)
     {
-        ret = -ENAVAIL;
-        return ret;
+        return 0;
     }
     dev = filep->private_data;
     if (!dev)
@@ -108,6 +107,7 @@ static ssize_t globalmem_read (struct file *filep, char __user *buf, size_t coun
     }
     ret = copy_to_user(buf, dev->mem + curpos, count);
     *ppos += count;
+    ret = count;
     return ret;
 }
 
@@ -119,7 +119,7 @@ static ssize_t globalmem_write (struct file *filep, const char __user *buf, size
 #ifdef globalmem_debug
     printk("globalmem_write\n");
 #endif
-    if (curpos > GLOBALMEM_SIZE)
+    if (curpos >= GLOBALMEM_SIZE)
     {
         ret = -ENAVAIL;
         return ret;
@@ -136,6 +136,7 @@ static ssize_t globalmem_write (struct file *filep, const char __user *buf, size
     }
     ret = copy_from_user(dev->mem + curpos, buf, count);
     *ppos += count;
+    ret = count;
     return ret;
 }
 
@@ -216,7 +217,7 @@ static int __init globalmem_init(void)
     // 1. get the device id
     dev_t devno = MKDEV(globalmem_major, 0);
 #ifdef globalmem_debug
-    printk("globalmem_init\n");
+    printk(KERN_NOTICE "globalmem_init\n");
 #endif
     // 2. register the DEVICE_NUM of the char device
     if (globalmem_major)
@@ -229,7 +230,7 @@ static int __init globalmem_init(void)
         ret = alloc_chrdev_region(&devno, 0, DEVICE_NUM, "globalmem");
     }
     // check the error code
-    if (!ret)
+    if (ret < 0)
     {
         return ret;
     }
@@ -262,7 +263,7 @@ static void __exit globalmem_exit(void)
 {
     int i = 0;
 #ifdef globalmem_debug
-    printk("globalmem_exit\n");
+    printk(KERN_NOTICE "globalmem_exit\n");
 #endif
     // 1. remove the globalmem structure from teh kobject map
     for (i = 0; i < DEVICE_NUM; i++)
@@ -283,6 +284,6 @@ static void __exit globalmem_exit(void)
 module_init(globalmem_init)
 module_exit(globalmem_exit)
 // the declaration	of the author
-MODULE_AUTHOR("ZhongHuan Duan <15818411038@163.com>")
+MODULE_AUTHOR("ZhongHuan Duan <15818411038@163.com>");
 // the declaration of the licence
-MODULE_LICENSE("GPL v2")
+MODULE_LICENSE("GPL v2");
