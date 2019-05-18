@@ -16,6 +16,7 @@
 #include "linux/fs.h"
 #include "linux/slab.h"
 #include "linux/uaccess.h"
+#include "linux/mutex.h"
 
 #define  GLOBALMEM_SIZE  (0X1000)
 #define  GLOBALMEM_MAJOR  (230)
@@ -31,6 +32,7 @@ struct globalmem_dev
 {
     struct cdev chrdev;
     unsigned char mem[GLOBALMEM_SIZE];
+    struct mutex mutex;
 };
 static struct globalmem_dev *globalmem_devp = NULL;
 
@@ -105,7 +107,10 @@ static ssize_t globalmem_read (struct file *filep, char __user *buf, size_t coun
     {
         count = GLOBALMEM_SIZE - curpos;
     }
+    // add mutex
+    mutex_lock_interruptible(&dev->mutex);
     ret = copy_to_user(buf, dev->mem + curpos, count);
+    mutex_unlock(&dev->mutex);
     *ppos += count;
     ret = count;
     return ret;
@@ -134,7 +139,10 @@ static ssize_t globalmem_write (struct file *filep, const char __user *buf, size
     {
         count = GLOBALMEM_SIZE - curpos;
     }
+    // add mutex
+    mutex_lock_interruptible(&dev->mutex);
     ret = copy_from_user(dev->mem + curpos, buf, count);
+    mutex_unlock(&dev->mutex);
     *ppos += count;
     ret = count;
     return ret;
@@ -242,6 +250,9 @@ static int __init globalmem_init(void)
         ret = -ENOMEM;
         goto fail_malloc;
     }
+
+    // initialize the mutex
+    mutex_init(&globalmem_devp->mutex);
 
     // 4. add the globalmem decices structure pointer to the kobjct map
     for (i = 0; i < DEVICE_NUM; i++)

@@ -4,6 +4,8 @@ CONFIG -= app_bundle
 CONFIG -= qt
 
 DEFINES += __KERNEL__
+DEFINES += CONFIG_PREEMPT_COUNT
+DEFINES += CONFIG_DEBUG_PREEMPT
 
 SOURCES += \
     ../../kernel/drivers/char/globalmem/globalmem.c \
