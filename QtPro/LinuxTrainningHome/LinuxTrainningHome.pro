@@ -13627,7 +13627,8 @@ SOURCES += \
     ../../../../../../media/dzh/linux/sourceInsight-linux3.5/linux-3.5/sound/last.c \
     ../../../../../../media/dzh/linux/sourceInsight-linux3.5/linux-3.5/sound/sound_core.c \
     ../../../../../../media/dzh/linux/sourceInsight-linux3.5/linux-3.5/sound/sound_firmware.c \
-    ../../../../../../media/dzh/linux/sourceInsight-linux3.5/linux-3.5/usr/gen_init_cpio.c
+    ../../../../../../media/dzh/linux/sourceInsight-linux3.5/linux-3.5/usr/gen_init_cpio.c \
+    ../../kernel/drivers/char/globalfifo/globalfifo.c
 
 DISTFILES += \
     ../../../../../../media/dzh/linux/sourceInsight-linux3.5/linux-3.5/sound/pci/cs46xx/imgs/cwcdma.asp \
