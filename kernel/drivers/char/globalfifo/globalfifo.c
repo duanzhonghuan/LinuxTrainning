@@ -20,6 +20,7 @@
 #include "linux/wait.h"
 #include "linux/sched.h"
 #include "linux/types.h"
+#include "linux/poll.h"
 
 #define  GLOBALFIFO_SIZE  (0X1000)
 #define  GLOBALFIFO_MAJOR  (231)
@@ -27,8 +28,6 @@
 #define  FIFO_CLEAR  (0x01)
 static int globalfifo_major = GLOBALFIFO_MAJOR;
 #define globalfifo_debug
-
-extern  int signal_pending(struct task_struct *p);
 
 /**
  * @brief The globalfifo_dev struct - the description of the global memory
@@ -281,6 +280,41 @@ out2:
     return ret;
 }
 
+
+static unsigned int globalfifo_poll (struct file *filep, struct poll_table_struct *wait)
+{
+    int ret = 0;
+    struct globalfifo_dev *dev = filep->private_data;
+    if (!dev)
+    {
+        ret = POLLERR;
+        return ret;
+    }
+
+    mutex_lock_interruptible(&dev->mutex);
+	// 将读写的等待队列头添加到poll_table_struct
+	// 这个结构体指针表中，目的是为了唤醒因select
+	// 而睡眠的进程。
+	// 对于驱动的poll函数来说，该函数是非堵塞函数；
+	// 对于应用层的select、poll、epoll函数来说，它们
+	// 被调用时会导致调用进程堵塞睡眠。
+    poll_wait(filep, &dev->r_wait, wait);
+    poll_wait(filep, &dev->w_wait, wait);
+	// 对于poll函数来说，要返回设备的状态
+    if (dev->current_len != 0)
+    {
+        ret |= POLLIN | POLLRDNORM;
+    }
+    if (dev->current_len != GLOBALFIFO_SIZE)
+    {
+        ret |= POLLOUT | POLLWRNORM;
+    }
+
+    mutex_unlock(&dev->mutex);
+
+    return ret;
+}
+
 /**
  * @brief globalfifo_unlocked_ioctl
  * @param filep
@@ -327,6 +361,7 @@ static  struct file_operations chrdev_file_operations =
     .unlocked_ioctl = globalfifo_unlocked_ioctl,
     .open = globalfifo_open,
     .release = globalfifo_release,
+    .poll = globalfifo_poll,
 };
 
 /**
