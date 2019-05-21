@@ -19,13 +19,16 @@
 #include "linux/mutex.h"
 #include "linux/wait.h"
 #include "linux/sched.h"
+#include "linux/types.h"
 
 #define  GLOBALFIFO_SIZE  (0X1000)
-#define  GLOBALFIFO_MAJOR  (230)
+#define  GLOBALFIFO_MAJOR  (231)
 #define  DEVICE_NUM  (1)
 #define  FIFO_CLEAR  (0x01)
 static int globalfifo_major = GLOBALFIFO_MAJOR;
 #define globalfifo_debug
+
+extern  int signal_pending(struct task_struct *p);
 
 /**
  * @brief The globalfifo_dev struct - the description of the global memory
@@ -94,6 +97,11 @@ static ssize_t globalfifo_read (struct file *filep, char __user *buf, size_t cou
 {
     ssize_t ret = 0;
     struct globalfifo_dev *dev;
+
+    // declare a wait queue @read_global_fifo
+    // set @current task to the @read_global_fifo
+    DECLARE_WAITQUEUE(read_global_fifo, current);
+
 #ifdef globalfifo_debug
     printk("globalfifo_read\n");
 #endif
@@ -103,10 +111,6 @@ static ssize_t globalfifo_read (struct file *filep, char __user *buf, size_t cou
         ret = -ENOMEM;
         return ret;
     }
-
-    // declare a wait queue @read_global_fifo
-    // set @current task to the @read_global_fifo
-    DECLARE_WAITQUEUE(read_global_fifo, current);
 
     // add mutex
     // 首先我们考虑一下，为什么要在这个位置加锁呢？
@@ -137,10 +141,12 @@ static ssize_t globalfifo_read (struct file *filep, char __user *buf, size_t cou
 		// 为什么不直接用包装好的set_current_state?
         __set_current_state(TASK_INTERRUPTIBLE);
 		// 在这里分析一下为啥解锁了？
-		// 因为后面主动调用调度函数，这样肯定不能加锁的，
-		// 否则很容易造成死锁情况发生。一般加锁的区间只涉及到
-		// 对共享资源区间进行加锁访问，私有的资源不再加锁，还有
-		// 加锁区间不能有导致调度的情况发生，不然容易造成死锁
+		// 假如此时的可读数据长度为0，然后在未解锁的情况下，
+		// 主动调度出去，进入到写的任务队列中，但是此时写的任务队列
+		// 也是依靠这个互斥锁的，此时互斥锁还没有释放。因此，
+		// 进入到写的任务队列后会阻塞，然后调度出去，这样的话，这个读
+		// 任务队列和写任务队列永远无法进入了，这个互斥锁也成为了死锁。
+		// 所以，一定要在调度出去之前将互斥锁解锁。
         mutex_unlock(&dev->mutex);
 
         // schedule it right now
@@ -158,7 +164,10 @@ static ssize_t globalfifo_read (struct file *filep, char __user *buf, size_t cou
     {
         count = dev->current_len;
     }
-
+	// 调用这个函数的时候，也可能导致因阻塞而调度到其他任务上去的，
+	// 虽然互斥锁在锁住状态，但是没关系，因为我们的可读长度目前不为0，
+	// 就算调度到了写队列上，写队列此时也是无功而返，又回到该队列中，
+	// 然后等待该队列读完数据，解锁后，写队列才能获取锁操作。
     if (copy_to_user(buf, dev->mem, count))
     {
         ret = -EFAULT;
@@ -184,6 +193,11 @@ static ssize_t globalfifo_write (struct file *filep, const char __user *buf, siz
 {
     ssize_t ret = 0;
     struct globalfifo_dev *dev;
+
+    // declare a wait queue @write_global_fifo
+    // set @current task to the @write_global_fifo
+    DECLARE_WAITQUEUE(write_global_fifo, current);
+
 #ifdef globalfifo_debug
     printk("globalfifo_read\n");
 #endif
@@ -193,10 +207,6 @@ static ssize_t globalfifo_write (struct file *filep, const char __user *buf, siz
         ret = -ENOMEM;
         return ret;
     }
-
-    // declare a wait queue @write_global_fifo
-    // set @current task to the @write_global_fifo
-    DECLARE_WAITQUEUE(write_global_fifo, current);
 
     // add mutex
     // 首先我们考虑一下，为什么要在这个位置加锁呢？
@@ -215,7 +225,7 @@ static ssize_t globalfifo_write (struct file *filep, const char __user *buf, siz
     // 添加这个变量的话，可能导致dev->w_wait添加多个read_global_fifo
     add_wait_queue(&dev->w_wait, &write_global_fifo);
 
-    while (dev->current_len == 0)
+    while (dev->current_len == GLOBALFIFO_SIZE)
     {
         // 如果是非堵塞函数的话，直接退出，等到任务下次在调用读接口
         if (filep->f_flags & O_NONBLOCK)
@@ -227,11 +237,6 @@ static ssize_t globalfifo_write (struct file *filep, const char __user *buf, siz
         // 但是可以通过信号唤醒。
         // 为什么不直接用包装好的set_current_state?
         __set_current_state(TASK_INTERRUPTIBLE);
-        // 在这里分析一下为啥解锁了？
-        // 因为后面主动调用调度函数，这样肯定不能加锁的，
-        // 否则很容易造成死锁情况发生。一般加锁的区间只涉及到
-        // 对共享资源区间进行加锁访问，私有的资源不再加锁，还有
-        // 加锁区间不能有导致调度的情况发生，不然容易造成死锁
         mutex_unlock(&dev->mutex);
 
         // schedule it right now
@@ -245,20 +250,19 @@ static ssize_t globalfifo_write (struct file *filep, const char __user *buf, siz
         mutex_lock(&dev->mutex);
     }
 
-    if (count > dev->current_len)
+    if (count > GLOBALFIFO_SIZE - dev->current_len)
     {
-        count = dev->current_len;
+        count = GLOBALFIFO_SIZE - dev->current_len;
     }
 
-    if (copy_to_user(buf, dev->mem, count))
+    if (copy_from_user(dev->mem + dev->current_len, buf, count))
     {
         ret = -EFAULT;
         goto out;
     }
     else
     {
-        memcpy(dev->mem, dev->mem + count, dev->current_len - count);
-        dev->current_len -= count;
+        dev->current_len += count;
         wake_up_interruptible(&dev->r_wait);
         ret = count;
     }
