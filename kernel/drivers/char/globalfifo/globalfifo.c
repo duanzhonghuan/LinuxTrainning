@@ -156,6 +156,9 @@ static ssize_t globalfifo_read (struct file *filep, char __user *buf, size_t cou
             ret = -ERESTARTSYS;
             goto out2;
         }
+#ifdef globalfifo_debug
+    printk(KERN_NOTICE "globalfifo_read = %d\n", __LINE__);
+#endif
 
         mutex_lock(&dev->mutex);
     }
@@ -265,6 +268,9 @@ static ssize_t globalfifo_write (struct file *filep, const char __user *buf, siz
         dev->current_len += count;
         wake_up_interruptible(&dev->r_wait);
         ret = count;
+#ifdef globalfifo_debug
+    printk(KERN_DEBUG "globalfifo_write = %s\n", dev->mem);
+#endif
     }
 
 out:
@@ -375,6 +381,9 @@ static int __init globalfifo_init(void)
     if (!globalfifo_devp)
     {
         ret = -ENOMEM;
+#ifdef globalfifo_debug
+    printk(KERN_NOTICE "globalfifo_init = %d\n", __LINE__);
+#endif
         goto fail_malloc;
     }
 
@@ -382,7 +391,7 @@ static int __init globalfifo_init(void)
     mutex_init(&globalfifo_devp->mutex);
 
     // initialize the write and read wait queue head
-    init_waitqueue_head(&globalfifo_devp->w_wait);
+    init_waitqueue_head(&globalfifo_devp->r_wait);
     init_waitqueue_head(&globalfifo_devp->w_wait);
 
     // 4. add the globalfifo decices structure pointer to the kobjct map
