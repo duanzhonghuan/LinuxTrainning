@@ -311,7 +311,7 @@ static unsigned int globalfifo_poll (struct file *filep, struct poll_table_struc
     }
 
     mutex_unlock(&dev->mutex);
-
+    printk("pol;123456 = %d\n", dev->current_len);
     return ret;
 }
 
