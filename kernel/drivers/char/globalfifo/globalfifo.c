@@ -28,8 +28,6 @@
 static int globalfifo_major = GLOBALFIFO_MAJOR;
 #define globalfifo_debug
 
-extern  int signal_pending(struct task_struct *p);
-
 /**
  * @brief The globalfifo_dev struct - the description of the global memory
  */
