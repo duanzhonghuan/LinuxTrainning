@@ -13854,7 +13854,8 @@ SOURCES += \
     ../../../linux/arch/arm/xen/mm.c \
     ../../../linux/arch/arm/xen/mm32.c \
     ../../../linux/arch/arm/xen/p2m.c \
-    ../../app/signalTest/SignalTest.c
+    ../../app/signalTest/SignalTest.c \
+    ../../kernel/drivers/char/globalfifo/globalfifo.c
 
 DISTFILES += \
     ../../kernel/drivers/char/globalmem/Makefile \
