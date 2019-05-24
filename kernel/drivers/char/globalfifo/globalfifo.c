@@ -40,6 +40,7 @@ struct globalfifo_dev
     struct mutex mutex;
     wait_queue_head_t r_wait;
     wait_queue_head_t w_wait;
+    struct fasync_struct *async_queue;
 };
 static struct globalfifo_dev *globalfifo_devp = NULL;
 
@@ -270,6 +271,11 @@ static ssize_t globalfifo_write (struct file *filep, const char __user *buf, siz
 #ifdef globalfifo_debug
     printk(KERN_DEBUG "globalfifo_write = %s\n", dev->mem);
 #endif
+        if (dev->async_queue)  // post readable signal when async
+        {
+            kill_fasync(&dev->async_queue, SIGIO, POLL_IN);
+            printk("%s kill SIGIO\n", __func__);
+        }
     }
 
 out:
@@ -347,8 +353,16 @@ static int globalfifo_open (struct inode *inode, struct file *filep)
     return 0;
 }
 
+static int globalfifo_fasync (int fd, struct file *filep, int mode)
+{
+    struct globalfifo_dev *dev = filep->private_data;
+    return fasync_helper(fd, filep, mode, &dev->async_queue);
+}
+
 static int globalfifo_release (struct inode *inode, struct file *filep)
 {
+    // remove async function form the async queue
+    globalfifo_fasync(-1, filep, 0);
     return 0;
 }
 
@@ -362,6 +376,7 @@ static  struct file_operations chrdev_file_operations =
     .open = globalfifo_open,
     .release = globalfifo_release,
     .poll = globalfifo_poll,
+    .fasnyc = globalfifo_fasync,
 };
 
 /**
