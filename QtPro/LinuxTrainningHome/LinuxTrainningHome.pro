@@ -6,6 +6,8 @@ CONFIG -= qt
 DEFINES +=  __KERNEL__
 DEFINES += CONFIG_PREEMPT_COUNT
 DEFINES += CONFIG_SMP
+DEFINES += CONFIG_GENERIC_HARDIRQS
+DEFINES += CONFIG_DM9000
 
 SOURCES += \
     ../../kernel/drivers/char/globalmem/globalmem.c \

@@ -376,7 +376,7 @@ static  struct file_operations chrdev_file_operations =
     .open = globalfifo_open,
     .release = globalfifo_release,
     .poll = globalfifo_poll,
-    .fasnyc = globalfifo_fasync,
+    .fasync = globalfifo_fasync,
 };
 
 /**
