@@ -21,6 +21,7 @@
 #include "linux/sched.h"
 #include "linux/types.h"
 #include "linux/poll.h"
+#include "linux/platform_device.h"
 
 #define  GLOBALFIFO_SIZE  (0X1000)
 #define  GLOBALFIFO_MAJOR  (231)
@@ -482,8 +483,97 @@ static void __exit globalfifo_exit(void)
     printk("globalfifo_exit success\n");
 }
 
-module_init(globalfifo_init)
-module_exit(globalfifo_exit)
+static int glboalfifo_probe(struct platform_device *pdev)
+{
+    int i = 0;
+    int ret = 0;
+    // 1. get the device id
+    dev_t devno = MKDEV(globalfifo_major, 0);
+#ifdef globalfifo_debug
+    printk(KERN_NOTICE "globalfifo_init\n");
+#endif
+    // 2. register the DEVICE_NUM of the char device
+    if (globalfifo_major)
+    {
+        ret = register_chrdev_region(devno, DEVICE_NUM, "globalfifo");
+    }
+    else
+    {
+        // automatic register char device
+        ret = alloc_chrdev_region(&devno, 0, DEVICE_NUM, "globalfifo");
+    }
+    // check the error code
+    if (ret < 0)
+    {
+        return ret;
+    }
+
+    // 3. construct the globalfifo devices structure in the heap
+    globalfifo_devp = kzalloc(sizeof(struct globalfifo_dev) * DEVICE_NUM, GFP_KERNEL);
+    if (!globalfifo_devp)
+    {
+        ret = -ENOMEM;
+#ifdef globalfifo_debug
+    printk(KERN_NOTICE "globalfifo_init = %d\n", __LINE__);
+#endif
+        goto fail_malloc;
+    }
+
+    // initialize the mutex
+    mutex_init(&globalfifo_devp->mutex);
+
+    // initialize the write and read wait queue head
+    init_waitqueue_head(&globalfifo_devp->r_wait);
+    init_waitqueue_head(&globalfifo_devp->w_wait);
+
+    // 4. add the globalfifo decices structure pointer to the kobjct map
+    for (i = 0; i < DEVICE_NUM; i++)
+    {
+        globalfifo_init_dev(globalfifo_devp + i, i);
+    }
+    printk("globalfifo_init success\n");
+    return 0;
+
+ fail_malloc:
+    unregister_chrdev_region(devno, DEVICE_NUM);
+    return ret;
+}
+
+static int glboalfifo_remove(struct platform_device *pdev)
+{
+    int i = 0;
+#ifdef globalfifo_debug
+    printk(KERN_NOTICE "globalfifo_exit\n");
+#endif
+    // 1. remove the globalfifo structure from teh kobject map
+    for (i = 0; i < DEVICE_NUM; i++)
+    {
+        cdev_del(&(globalfifo_devp + i)->chrdev);
+    }
+
+    // 2. free the glboalmem structure in the heap
+    kfree(globalfifo_devp);
+
+    // 3. unregister the device id
+    unregister_chrdev_region(MKDEV(globalfifo_major, 0), DEVICE_NUM);
+
+    // 4. remove the device id
+    printk("globalfifo_exit success\n");
+}
+
+static struct platform_driver globalfifo_driver = {
+    .driver = {
+        .name = "glboalfifo",  // used in devices binding
+        .owner = THIS_MODULE,
+    },
+    .probe = glboalfifo_probe,
+    .remove = glboalfifo_remove,
+};
+
+//module_init(globalfifo_init)
+//module_exit(globalfifo_exit)
+module_platform_driver(globalfifo_driver)
+
 // the declaration	of the author
 MODULE_AUTHOR("ZhongHuan Duan <15818411038@163.com>");
 // the declaration of the licence
