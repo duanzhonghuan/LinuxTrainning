@@ -8,6 +8,7 @@ DEFINES += CONFIG_PREEMPT_COUNT
 DEFINES += CONFIG_SMP
 DEFINES += CONFIG_GENERIC_HARDIRQS
 DEFINES += CONFIG_DM9000
+DEFINES += CONFIG_BLOCK
 
 SOURCES += \
     ../../kernel/drivers/char/globalmem/globalmem.c \
@@ -13630,7 +13631,8 @@ SOURCES += \
     ../../../../../../media/dzh/linux/sourceInsight-linux3.5/linux-3.5/sound/sound_core.c \
     ../../../../../../media/dzh/linux/sourceInsight-linux3.5/linux-3.5/sound/sound_firmware.c \
     ../../../../../../media/dzh/linux/sourceInsight-linux3.5/linux-3.5/usr/gen_init_cpio.c \
-    ../../kernel/drivers/char/globalfifo/globalfifo.c
+    ../../kernel/drivers/char/globalfifo/globalfifo.c \
+    ../../kernel/drivers/block/vmemdisk/vmemdisk.c
 
 DISTFILES += \
     ../../../../../../media/dzh/linux/sourceInsight-linux3.5/linux-3.5/sound/pci/cs46xx/imgs/cwcdma.asp \
